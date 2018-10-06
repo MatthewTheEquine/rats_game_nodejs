@@ -3,6 +3,7 @@ const program = require('commander')
 const {QUERY, PHASE, SLEM, COMMAND} = require('./constants')
 const utils = require('./utils')
 const communicationLayer = require('./communicationLayer')
+const {comparison, comparer, cardsStrategy, averageRank} = require('./cardUtils')
 
 program
   .version('0.0.1')
@@ -15,20 +16,18 @@ const {log, wait} = utils(program.name)
 const {query, command} = communicationLayer(program.server, program.token, log)
 
 const selectCard = async ({cards_in_hand, cards_on_table, scoring_mode}) => {
-  const cardToPlay = cards_in_hand[0]
-
+  const { cards, extremum } = cardsStrategy(cards_in_hand, cards_on_table)
+  const cardToPlay = cards.reduce((x, y) => extremum(comparison(scoring_mode, x, y)) ? x : y);
   await command(COMMAND.SELECT_CARD, {card: cardToPlay})
 }
 
 const selectSlem = async ({cards_in_hand, cards_on_table, scoring_mode}) => {
-  const slem = SLEM.GRAND
-
+  const slem = averageRank(cards_in_hand) > 6 ? SLEM.GRAND : SLEM.SMALL
   await command(COMMAND.SELECT_SLEM, {slem: slem})
 }
 
 const discardCards = async ({cards_in_hand, cards_on_table, scoring_mode}) => {
-  const toDiscard = cards_in_hand.slice(0, 3)
-
+  const toDiscard = cards_in_hand.sort(comparer(scoring_mode)).slice(0, 3)
   await command(COMMAND.DISCARD, {cards: toDiscard})
 }
 
